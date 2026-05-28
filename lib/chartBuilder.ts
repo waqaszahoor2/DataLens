@@ -40,6 +40,30 @@ function groupAggregate(
   return result;
 }
 
+function getFormattedDatePart(val: any, grain: "year" | "quarter" | "month" | "day" | "weekday"): string {
+  if (!val) return "Unknown";
+  const date = new Date(val);
+  if (isNaN(date.getTime())) return String(val);
+  
+  switch (grain) {
+    case "year":
+      return String(date.getFullYear());
+    case "quarter":
+      const q = Math.floor(date.getMonth() / 3) + 1;
+      return `${date.getFullYear()}-Q${q}`;
+    case "month":
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      return `${date.getFullYear()}-${monthNames[date.getMonth()]}`;
+    case "day":
+      return date.toISOString().split('T')[0];
+    case "weekday":
+      const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      return weekdays[date.getDay()];
+    default:
+      return String(val);
+  }
+}
+
 /**
  * Build chart-ready data from a chart config, raw dataset rows, and active cross-filters.
  */
@@ -48,11 +72,18 @@ export function buildChartData(
   data: Row[],
   filters: ActiveFilters
 ): { data: ChartDataPoint[]; keys?: string[] } {
-  const filtered = applyCrossFilters(data, filters);
+  let filtered = applyCrossFilters(data, filters);
 
   const { type, xColumn, yColumn, colorColumn, aggregation = "sum" } = config;
 
   if (!xColumn || !data.length) return { data: [] };
+
+  if (xColumn && config.dateHierarchyGrain) {
+    filtered = filtered.map(row => ({
+      ...row,
+      [xColumn]: getFormattedDatePart(row[xColumn], config.dateHierarchyGrain!)
+    }));
+  }
 
   if (type === "scatter") {
     return {

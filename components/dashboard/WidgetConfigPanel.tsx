@@ -49,6 +49,12 @@ export default function WidgetConfigPanel() {
   const columns = dataset?.columns ?? [];
   const colNames = columns.map((c) => c.name);
 
+  const selectedXColumn = columns.find((c) => c.name === chart.xColumn);
+  const isDateColumn = !!(selectedXColumn?.type === "date" || 
+                       chart.xColumn?.toLowerCase().includes("date") ||
+                       chart.xColumn?.toLowerCase().includes("time") ||
+                       chart.xColumn?.toLowerCase().includes("year"));
+
   const update = (updates: Partial<ChartConfig>) => updateChart(chart.id, updates);
 
   return (
@@ -155,6 +161,26 @@ export default function WidgetConfigPanel() {
                     {colNames.map((c) => <option key={c}>{c}</option>)}
                   </select>
                 </Field>
+
+                {isDateColumn && (
+                  <Field label="Date Hierarchy Grain">
+                    <select
+                      value={chart.dateHierarchyGrain ?? ""}
+                      onChange={(e) => update({ dateHierarchyGrain: e.target.value as any || undefined })}
+                      className="input border-brand/50 bg-brand/[0.02]"
+                    >
+                      <option value="">Original values (No Hierarchy)</option>
+                      <option value="year">Years (e.g., 2024)</option>
+                      <option value="quarter">Quarters (e.g., 2024-Q1)</option>
+                      <option value="month">Months (e.g., 2024-Jan)</option>
+                      <option value="day">Days (e.g., 2024-05-28)</option>
+                      <option value="weekday">Weekdays (e.g., Monday)</option>
+                    </select>
+                    <span className="text-[10px] text-brand font-medium mt-1 block">
+                      ✨ Date hierarchy groupings active.
+                    </span>
+                  </Field>
+                )}
 
                 {!["pie","donut","heatmap"].includes(chart.type) || true ? (
                   <Field label="Y Axis / Value">

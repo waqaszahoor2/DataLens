@@ -128,6 +128,7 @@ export interface ChartConfig {
   h?: number;
   widgetTransform?: WidgetTransform;
   pythonCode?: string;
+  dateHierarchyGrain?: "year" | "quarter" | "month" | "day" | "weekday";
 }
 
 export interface Dataset {
