@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  datalens:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    volumes:
+      - .env.local:/app/.env.local

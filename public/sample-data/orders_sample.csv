@@ -1,0 +1,31 @@
+order_id,customer_name,customer_email,order_date,delivery_date,status,amount,payment_method,city,country
+1001,John Doe,john@example.com,2026-01-05,2026-01-08,Delivered,250,Credit Card,New York,United States
+1002,Jane Smith,jane@example.com,2026-01-06,2026-01-10,Delivered,89,PayPal,London,United Kingdom
+1003,Bob Johnson,bob@example.com,2026-01-07,2026-01-12,Delivered,420,Credit Card,Toronto,Canada
+1004,Alice Brown,alice@example.com,2026-01-08,,Shipped,1200,Wire Transfer,Berlin,Germany
+1005,Charlie Green,charlie@example.com,2026-01-09,2026-01-11,Delivered,65,PayPal,Paris,France
+1006,David White,david@example.com,2026-01-10,2026-01-13,Delivered,180,Credit Card,Sydney,Australia
+1007,Emma Black,emma@example.com,2026-01-11,,Processing,95,Credit Card,Tokyo,Japan
+1008,Frank Blue,frank@example.com,2026-01-12,2026-01-15,Delivered,310,PayPal,London,United Kingdom
+1009,Grace Red,grace@example.com,2026-01-13,,Shipped,150,Credit Card,New York,United States
+1010,Henry Gold,henry@example.com,2026-01-14,,Cancelled,0,,Toronto,Canada
+1011,Isabella Pink,isabella@example.com,2026-02-01,2026-02-04,Delivered,450,Credit Card,New York,United States
+1012,Jack Purple,jack@example.com,2026-02-02,2026-02-05,Delivered,125,PayPal,London,United Kingdom
+1013,Kate Orange,kate@example.com,2026-02-03,2026-02-08,Delivered,600,Wire Transfer,Toronto,Canada
+1014,Leo Yellow,leo@example.com,2026-02-04,,Shipped,85,Credit Card,Berlin,Germany
+1015,Mona Grey,mona@example.com,2026-02-05,2026-02-07,Delivered,210,PayPal,Paris,France
+1016,Ned Violet,ned@example.com,2026-02-06,,Processing,320,Credit Card,Sydney,Australia
+1017,Olivia Silver,olivia@example.com,2026-02-07,2026-02-10,Delivered,75,Credit Card,Tokyo,Japan
+1018,Paul Bronze,paul@example.com,2026-02-08,2026-02-12,Delivered,190,PayPal,London,United Kingdom
+1019,Quinn Ruby,quinn@example.com,2026-02-09,,Cancelled,0,,New York,United States
+1020,Rose Jade,rose@example.com,2026-02-10,2026-02-14,Delivered,520,Credit Card,Toronto,Canada
+1021,Sam Teal,sam@example.com,2026-03-01,2026-03-04,Delivered,350,Credit Card,New York,United States
+1022,Tina Cyan,tina@example.com,2026-03-02,2026-03-06,Delivered,99,PayPal,London,United Kingdom
+1023,Victor Navy,victor@example.com,2026-03-03,2026-03-08,Delivered,850,Wire Transfer,Toronto,Canada
+1024,Wendy Olive,wendy@example.com,2026-03-04,,Shipped,110,Credit Card,Berlin,Germany
+1025,Xavier Plum,xavier@example.com,2026-03-05,2026-03-07,Delivered,240,PayPal,Paris,France
+1026,Yolanda Peach,yolanda@example.com,2026-03-06,,Processing,410,Credit Card,Sydney,Australia
+1027,Zach Amber,zach@example.com,2026-03-07,2026-03-10,Delivered,130,Credit Card,Tokyo,Japan
+1028,Amy Pearl,amy@example.com,2026-03-08,2026-03-12,Delivered,290,PayPal,London,United Kingdom
+1029,Ben Opal,ben@example.com,2026-03-09,,Shipped,180,Credit Card,New York,United States
+1030,Cody Quartz,cody@example.com,2026-03-10,,Cancelled,0,,Toronto,Canada

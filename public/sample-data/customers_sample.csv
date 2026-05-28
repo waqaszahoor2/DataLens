@@ -1,0 +1,31 @@
+customer_id,name,age,gender,city,country,signup_date,total_orders,total_spent,segment
+C101,John Doe,34,Male,New York,United States,2025-05-12,12,1450,VIP
+C102,Jane Smith,28,Female,London,United Kingdom,2025-06-18,5,420,Regular
+C103,Bob Johnson,45,Male,Toronto,Canada,2025-01-20,22,3900,VIP
+C104,Alice Brown,22,Female,Berlin,Germany,2025-09-05,2,110,New
+C105,Charlie Green,31,Male,Paris,France,2025-03-14,8,890,Regular
+C106,David White,52,Male,Sydney,Australia,2025-07-22,14,1980,VIP
+C107,Emma Black,25,Female,Tokyo,Japan,2025-11-01,3,250,Regular
+C108,Frank Blue,40,Male,London,United Kingdom,2025-02-28,11,1150,Regular
+C109,Grace Red,29,Female,New York,United States,2025-10-10,4,380,Regular
+C110,Henry Gold,61,Male,Toronto,Canada,2025-04-05,18,2450,VIP
+C111,Isabella Pink,27,Female,New York,United States,2025-08-15,6,540,Regular
+C112,Jack Purple,35,Male,London,United Kingdom,2025-05-30,7,780,Regular
+C113,Kate Orange,42,Female,Toronto,Canada,2025-02-14,15,1890,VIP
+C114,Leo Yellow,19,Male,Berlin,Germany,2025-12-01,1,45,New
+C115,Mona Grey,48,Female,Paris,France,2025-06-05,9,950,Regular
+C116,Ned Violet,38,Male,Sydney,Australia,2025-03-25,12,1320,Regular
+C117,Olivia Silver,30,Female,Tokyo,Japan,2025-09-20,5,490,Regular
+C118,Paul Bronze,55,Male,London,United Kingdom,2025-01-10,20,2900,VIP
+C119,Quinn Ruby,23,Female,New York,United States,2025-11-15,2,180,New
+C120,Rose Jade,47,Female,Toronto,Canada,2025-04-18,16,2100,VIP
+C121,Sam Teal,33,Male,New York,United States,2025-07-08,8,920,Regular
+C122,Tina Cyan,26,Female,London,United Kingdom,2025-10-05,3,280,New
+C123,Victor Navy,50,Male,Toronto,Canada,2025-02-22,19,2750,VIP
+C124,Wendy Olive,24,Female,Berlin,Germany,2025-11-28,2,130,New
+C125,Xavier Plum,36,Male,Paris,France,2025-05-14,9,1120,Regular
+C126,Yolanda Peach,44,Female,Sydney,Australia,2025-08-01,10,1250,Regular
+C127,Zach Amber,58,Male,Tokyo,Japan,2025-03-12,17,2300,VIP
+C128,Amy Pearl,32,Female,London,United Kingdom,2025-09-11,6,610,Regular
+C129,Ben Opal,21,Male,New York,United States,2025-12-05,1,95,New
+C130,Cody Quartz,49,Male,Toronto,Canada,2025-06-25,13,1650,VIP

@@ -1,0 +1,13 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "env": {
+    "ANTHROPIC_API_KEY": "@anthropic-api-key"
+  },
+  "functions": {
+    "app/api/ai-chat/route.ts": { "maxDuration": 60 },
+    "app/api/execute-code/route.ts": { "maxDuration": 30 }
+  }
+}
