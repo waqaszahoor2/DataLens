@@ -7,9 +7,6 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  experimental: {
-    serverActions: { bodySizeLimit: "10mb" },
-  },
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -21,10 +18,6 @@ const nextConfig = {
         buffer: false,
       };
     }
-    // Handle plotly.js
-    config.resolve.alias = {
-      ...config.resolve.alias,
-    };
     return config;
   },
   async headers() {

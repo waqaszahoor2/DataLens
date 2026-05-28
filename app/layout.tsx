@@ -1,35 +1,29 @@
-import type { Metadata } from "next";
-import "./globals.css";
-import { Toaster } from "sonner";
+import type { Metadata } from 'next'
+import { DM_Sans } from 'next/font/google'
+import { Toaster } from 'sonner'
+import './globals.css'
+
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+})
 
 export const metadata: Metadata = {
-  title: "DataLens — AI-Powered Data Analysis Platform",
-  description: "DataLens: Import, clean, transform, and visualize your data with AI assistance. Build stunning dashboards in minutes.",
-  keywords: ["data analysis", "AI", "dashboard", "visualization", "charts", "CSV", "analytics"],
-  authors: [{ name: "DataLens" }],
-  openGraph: {
-    title: "DataLens — AI-Powered Data Analysis Platform",
-    description: "Import, transform, and visualize your data with AI assistance.",
-    type: "website",
-  },
-};
+  title: 'DataLens — AI Data Analysis Platform',
+  description: 'Import, clean, transform and visualize data with AI',
+}
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      </head>
-      <body className="font-sans antialiased bg-surface2 text-text-primary">
+    <html lang="en">
+      <body className={dmSans.className}>
         {children}
-        <Toaster
-          position="bottom-right"
-          toastOptions={{
-            style: { fontFamily: "DM Sans, sans-serif", fontSize: "14px" },
-          }}
-        />
+        <Toaster position="bottom-right" />
       </body>
     </html>
-  );
+  )
 }

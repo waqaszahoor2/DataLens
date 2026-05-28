@@ -66,3 +66,10 @@ export async function POST(req: NextRequest) {
     });
   }
 }
+
+export async function GET() {
+  return new Response(
+    JSON.stringify({ status: 'DataLens AI API is running' }),
+    { status: 200, headers: { 'Content-Type': 'application/json' } }
+  );
+}
