@@ -11,7 +11,15 @@ async function init() {
     pyodide = await loadPyodide({
       indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/"
     });
-    await pyodide.loadPackage(['pandas', 'numpy', 'scipy']);
+    await pyodide.loadPackage(['pandas', 'numpy', 'scipy', 'micropip']);
+    try {
+      await pyodide.runPythonAsync(`
+        import micropip
+        await micropip.install('plotly')
+      `);
+    } catch (e) {
+      console.warn("Failed to preinstall plotly:", e);
+    }
     ready = true;
     self.postMessage({ type: 'ready' });
   })();
