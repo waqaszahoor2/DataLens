@@ -1,6 +1,7 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Sidebar from "@/components/sidebar/Sidebar";
 import Topbar from "@/components/topbar/Topbar";
 import { useDataStore } from "@/store/useDataStore";
@@ -9,26 +10,40 @@ import { useDevice } from "@/lib/useDevice";
 import ImportStep from "@/components/transform/ImportStep";
 import CleanStep from "@/components/transform/CleanStep";
 import TransformStepComponent from "@/components/transform/TransformStep";
-import PythonStep from "@/components/transform/PythonStep";
+import LinkStep from "@/components/transform/LinkStep";
 import ModelStep from "@/components/transform/ModelStep";
-import { Upload, Wand2, GitBranch, Code, Activity, ChevronRight, Table2, Settings2 } from "lucide-react";
+import { Upload, Wand2, GitBranch, Link2, Code, Activity, ChevronRight, Table2, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const STEPS = [
-  { step: 0, label: "Import", sublabel: "Load your data", icon: Upload },
-  { step: 1, label: "Clean", sublabel: "Fix quality issues", icon: Wand2 },
-  { step: 2, label: "Transform", sublabel: "Reshape & compute", icon: GitBranch },
-  { step: 3, label: "Python", sublabel: "Code Preprocessing", icon: Code },
-  { step: 4, label: "Model", sublabel: "Analyze & enrich", icon: Activity },
+  { step: 0, label: "Import", sublabel: "Load your data", icon: Upload, key: "import" },
+  { step: 1, label: "Clean", sublabel: "Fix quality issues", icon: Wand2, key: "clean" },
+  { step: 2, label: "Transform", sublabel: "Reshape & compute", icon: GitBranch, key: "transform" },
+  { step: 3, label: "Link Sheets", sublabel: "Database relations", icon: Link2, key: "link" },
+  { step: 4, label: "Model", sublabel: "Analyze & enrich", icon: Activity, key: "model" },
 ];
 
-export default function TransformPage() {
-  const { pipelineStep, setPipelineStep, datasets, activeDatasetId } = useDataStore();
+function TransformPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { pipelineStep, setPipelineStep, datasets, activeDatasetId, sheets } = useDataStore();
   const { isDarkMode } = useCanvasStore();
   const device = useDevice();
 
+  // Sync state step with query parameters
+  const stepParam = searchParams.get("step");
+  
+  useEffect(() => {
+    if (stepParam) {
+      const match = STEPS.find(s => s.key === stepParam);
+      if (match) {
+        setPipelineStep(match.step);
+      }
+    }
+  }, [stepParam, setPipelineStep]);
+
   const dataset = datasets.find((d) => d.id === activeDatasetId);
-  const hasData = !!dataset;
+  const hasData = sheets.length > 0;
 
   // Mobile layout state: active tab ("configure" or "preview")
   const [mobileTab, setMobileTab] = useState<"configure" | "preview">("configure");
@@ -36,14 +51,17 @@ export default function TransformPage() {
   const isMobile = device === "mobile";
   const isTablet = device === "tablet";
 
-  // Dynamic layout margins based on responsive sidebar collapse state
   const paddingLeftClass = isMobile
     ? "pl-0"
     : isTablet
       ? "pl-14"
       : "pl-56 3xl:pl-64";
 
-  // Render the responsive table preview container for mobile/tablet
+  const handleStepClick = (step: number, key: string) => {
+    setPipelineStep(step);
+    router.push(`/transform?step=${key}`);
+  };
+
   const renderDataPreviewTable = () => {
     if (!dataset) {
       return (
@@ -59,11 +77,11 @@ export default function TransformPage() {
       <div className="space-y-3 p-4 bg-white dark:bg-gray-900 border rounded-xl shadow-sm">
         <div className="flex items-center justify-between pb-2 border-b">
           <span className="text-xs font-bold text-text-primary uppercase tracking-wider flex items-center gap-1.5">
-            <Table2 className="w-4 h-4 text-brand" />
+            <Table2 className="w-4 h-4 text-green-primary" />
             Active Preview ({dataset.transformedData.length.toLocaleString()} rows)
           </span>
           {isMobile && (
-            <span className="text-[10px] bg-brand-50 text-brand px-1.5 py-0.5 rounded font-medium">
+            <span className="text-[10px] bg-green-light text-green-primary px-1.5 py-0.5 rounded font-medium">
               Showing 4 main columns
             </span>
           )}
@@ -103,7 +121,7 @@ export default function TransformPage() {
   };
 
   return (
-    <div className={cn("h-screen flex overflow-hidden", isDarkMode ? "bg-gray-950" : "bg-surface2")}>
+    <div className={cn("h-screen flex overflow-hidden", isDarkMode ? "bg-gray-950" : "bg-[#F7F8FA]")}>
       <Sidebar />
 
       <div className={cn("flex-grow flex flex-col min-w-0 transition-all duration-300", paddingLeftClass)}>
@@ -113,20 +131,20 @@ export default function TransformPage() {
           {/* A. MOBILE HEADER AND TABS */}
           {isMobile ? (
             <div className="flex flex-col bg-white dark:bg-gray-950 border-b flex-shrink-0">
-              {/* Stepper buttons (swipeable horizontal strip) */}
+              {/* Stepper buttons */}
               <div className="flex items-center gap-1.5 overflow-x-auto px-4 py-2 custom-scroll border-b">
-                {STEPS.map(({ step, label, icon: Icon }) => {
+                {STEPS.map(({ step, label, icon: Icon, key }) => {
                   const isDone = pipelineStep > step;
                   const isActive = pipelineStep === step;
                   const isAccessible = step === 0 || hasData || step <= pipelineStep;
                   return (
                     <button
                       key={step}
-                      onClick={() => isAccessible && setPipelineStep(step)}
+                      onClick={() => isAccessible && handleStepClick(step, key)}
                       disabled={!isAccessible}
                       className={cn(
                         "flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all flex-shrink-0",
-                        isActive ? "bg-brand text-white" : isDone ? "bg-brand-50 text-brand" : "bg-muted text-text-tertiary",
+                        isActive ? "bg-green-primary text-white" : isDone ? "bg-green-light text-green-primary" : "bg-muted text-text-tertiary",
                         !isAccessible && "opacity-40"
                       )}
                     >
@@ -143,7 +161,7 @@ export default function TransformPage() {
                   onClick={() => setMobileTab("configure")}
                   className={cn(
                     "py-3 border-b-2 font-bold flex items-center justify-center gap-1.5",
-                    mobileTab === "configure" ? "border-brand text-brand" : "border-transparent text-text-tertiary"
+                    mobileTab === "configure" ? "border-green-primary text-green-primary" : "border-transparent text-text-tertiary"
                   )}
                 >
                   <Settings2 className="w-4 h-4" />
@@ -153,7 +171,7 @@ export default function TransformPage() {
                   onClick={() => setMobileTab("preview")}
                   className={cn(
                     "py-3 border-b-2 font-bold flex items-center justify-center gap-1.5",
-                    mobileTab === "preview" ? "border-brand text-brand" : "border-transparent text-text-tertiary"
+                    mobileTab === "preview" ? "border-green-primary text-green-primary" : "border-transparent text-text-tertiary"
                   )}
                 >
                   <Table2 className="w-4 h-4" />
@@ -167,21 +185,21 @@ export default function TransformPage() {
               "border-b px-6 py-3.5 flex-shrink-0",
               isDarkMode ? "bg-gray-900 border-gray-800" : "bg-white border-border"
             )}>
-              <div className="flex items-center gap-0 max-w-4xl">
-                {STEPS.map(({ step, label, sublabel, icon: Icon }, idx) => {
+              <div className="flex items-center gap-0 max-w-5xl">
+                {STEPS.map(({ step, label, sublabel, icon: Icon, key }, idx) => {
                   const isDone = pipelineStep > step;
                   const isActive = pipelineStep === step;
                   const isAccessible = step === 0 || hasData || step <= pipelineStep;
                   return (
                     <div key={step} className="flex items-center flex-1">
                       <button
-                        onClick={() => isAccessible && setPipelineStep(step)}
+                        onClick={() => isAccessible && handleStepClick(step, key)}
                         disabled={!isAccessible}
                         className={cn(
                           "flex items-center gap-2 px-3 py-2.5 rounded-lg transition-all duration-200 flex-1",
-                          isActive && "bg-brand text-white",
-                          isDone && !isActive && (isDarkMode ? "text-brand-400" : "text-brand"),
-                          !isActive && !isDone && (isDarkMode ? "text-gray-600" : "text-text-tertiary"),
+                          isActive ? "bg-green-primary text-white" :
+                          isDone && !isActive ? "text-green-primary bg-[#E1F5EE]/40" :
+                          isDarkMode ? "text-gray-600" : "text-text-tertiary",
                           isAccessible && !isActive && "hover:bg-muted cursor-pointer",
                           !isAccessible && "cursor-not-allowed opacity-40"
                         )}
@@ -189,13 +207,13 @@ export default function TransformPage() {
                         <span className={cn(
                           "w-5.5 h-5.5 rounded-full flex items-center justify-center text-[10px] font-extrabold flex-shrink-0 transition-all",
                           isActive ? "bg-white/20 text-white" :
-                          isDone ? "bg-brand text-white" :
+                          isDone ? "bg-green-primary text-white" :
                           isDarkMode ? "bg-gray-800 text-gray-500" : "bg-gray-100 text-gray-400"
                         )}>
                           {isDone ? "✓" : step + 1}
                         </span>
                         <div className="text-left min-w-0 flex items-center gap-1.5">
-                          <Icon className={cn("w-3.5 h-3.5 flex-shrink-0", isActive ? "text-white" : isDone ? "text-brand" : "text-text-tertiary")} />
+                          <Icon className={cn("w-3.5 h-3.5 flex-shrink-0", isActive ? "text-white" : isDone ? "text-green-primary" : "text-text-tertiary")} />
                           <div>
                             <div className="text-xs font-bold truncate">{label}</div>
                             <div className={cn(
@@ -222,18 +240,15 @@ export default function TransformPage() {
 
           {/* MAIN PIPELINE VIEWPORT SPLITTER AREA */}
           <div className="flex-grow overflow-hidden flex">
-            {/* 1. TABLET ONLY DOCK CONFIG DOCK SPLITTER CONTAINER */}
             {isTablet ? (
               <>
                 {/* Left Config Panel */}
                 <div className="w-[300px] border-r overflow-y-auto custom-scroll p-4 space-y-4 bg-white dark:bg-gray-950 flex-shrink-0">
-                  <Suspense fallback={<div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin mx-auto mt-10" />}>
-                    {pipelineStep === 0 && <ImportStep />}
-                    {pipelineStep === 1 && <CleanStep />}
-                    {pipelineStep === 2 && <TransformStepComponent />}
-                    {pipelineStep === 3 && <PythonStep />}
-                    {pipelineStep === 4 && <ModelStep />}
-                  </Suspense>
+                  {pipelineStep === 0 && <ImportStep />}
+                  {pipelineStep === 1 && <CleanStep />}
+                  {pipelineStep === 2 && <TransformStepComponent />}
+                  {pipelineStep === 3 && <LinkStep />}
+                  {pipelineStep === 4 && <ModelStep />}
                 </div>
 
                 {/* Right Active Preview Table */}
@@ -242,38 +257,32 @@ export default function TransformPage() {
                 </div>
               </>
             ) : isMobile ? (
-              /* 2. MOBILE VIEW: SINGLE PANEL VIEWPORT PORTAL */
+              /* MOBILE VIEW */
               <div className="flex-grow overflow-y-auto p-4 pb-20">
                 {mobileTab === "configure" ? (
-                  <Suspense fallback={<div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin mx-auto mt-10" />}>
+                  <>
                     {pipelineStep === 0 && <ImportStep />}
                     {pipelineStep === 1 && <CleanStep />}
                     {pipelineStep === 2 && <TransformStepComponent />}
-                    {pipelineStep === 3 && <PythonStep />}
+                    {pipelineStep === 3 && <LinkStep />}
                     {pipelineStep === 4 && <ModelStep />}
-                  </Suspense>
+                  </>
                 ) : (
                   renderDataPreviewTable()
                 )}
               </div>
             ) : (
-              /* 3. DESKTOP Standard single custom scroll wrapper */
-              <div className={cn("flex-grow min-h-0", pipelineStep === 3 ? "flex flex-col" : "overflow-y-auto custom-scroll")}>
-                <div className={cn(pipelineStep === 3 ? "flex-1 p-6 flex flex-col min-h-0" : "max-w-4xl mx-auto px-6 py-6")}>
-                  <Suspense fallback={
-                    <div className="flex items-center justify-center h-48">
-                      <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  }>
-                    {pipelineStep === 0 && <ImportStep />}
-                    {pipelineStep === 1 && <CleanStep />}
-                    {pipelineStep === 2 && <TransformStepComponent />}
-                    {pipelineStep === 3 && <PythonStep />}
-                    {pipelineStep === 4 && <ModelStep />}
-                  </Suspense>
+              /* DESKTOP VIEW */
+              <div className={cn("flex-grow min-h-0", "overflow-y-auto custom-scroll")}>
+                <div className={cn("max-w-5xl mx-auto px-6 py-6")}>
+                  {pipelineStep === 0 && <ImportStep />}
+                  {pipelineStep === 1 && <CleanStep />}
+                  {pipelineStep === 2 && <TransformStepComponent />}
+                  {pipelineStep === 3 && <LinkStep />}
+                  {pipelineStep === 4 && <ModelStep />}
 
                   {/* Desktop active preview helper */}
-                  {pipelineStep > 0 && pipelineStep < 4 && (
+                  {pipelineStep > 0 && pipelineStep !== 3 && pipelineStep < 4 && (
                     <div className="mt-8">
                       {renderDataPreviewTable()}
                     </div>
@@ -285,5 +294,17 @@ export default function TransformPage() {
         </main>
       </div>
     </div>
+  );
+}
+
+export default function TransformPage() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen w-screen flex items-center justify-center bg-[#F7F8FA]">
+        <div className="w-8 h-8 border-4 border-green-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <TransformPageContent />
+    </Suspense>
   );
 }

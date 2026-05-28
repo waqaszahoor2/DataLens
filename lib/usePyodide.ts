@@ -6,6 +6,9 @@ export interface PyodideResult {
   csv: string;
   shape: string;
   dtypes: string;
+  chartJson?: string;
+  error?: string;
+  traceback?: string;
 }
 
 export function usePyodide() {
@@ -20,7 +23,7 @@ export function usePyodide() {
     workerRef.current = worker;
 
     worker.onmessage = (e) => {
-      const { type, id, console: consoleOutput, csv, shape, dtypes, error: workerErr } = e.data;
+      const { type, id, console: consoleOutput, csv, shape, dtypes, chartJson, error: workerErr } = e.data;
 
       if (type === "ready") {
         setIsReady(true);
@@ -28,7 +31,7 @@ export function usePyodide() {
       } else if (type === "success") {
         const resolver = resolversRef.current.get(id);
         if (resolver) {
-          resolver.resolve({ console: consoleOutput, csv, shape, dtypes });
+          resolver.resolve({ console: consoleOutput, csv, shape, dtypes, chartJson });
           resolversRef.current.delete(id);
         }
       } else if (type === "error") {
@@ -49,7 +52,7 @@ export function usePyodide() {
     };
   }, []);
 
-  const runPython = useCallback((code: string, csvData: string): Promise<PyodideResult> => {
+  const runPython = useCallback((code: string, sheetsOrCsv: string | Array<{ name: string; csv: string }>): Promise<PyodideResult> => {
     return new Promise((resolve, reject) => {
       if (!workerRef.current) {
         return reject(new Error("Pyodide worker is not initialized"));
@@ -58,8 +61,13 @@ export function usePyodide() {
       const id = Math.random().toString(36).substring(2, 9);
       resolversRef.current.set(id, { resolve, reject });
 
+      // If a single CSV string is passed, wrap it as a single sheet array
+      const sheetsList = typeof sheetsOrCsv === "string"
+        ? [{ name: "Dataset", csv: sheetsOrCsv }]
+        : sheetsOrCsv;
+
       // Send to Web Worker
-      workerRef.current.postMessage({ code, csvData, id });
+      workerRef.current.postMessage({ code, sheets: sheetsList, id });
 
       // 30-second timeout
       setTimeout(() => {

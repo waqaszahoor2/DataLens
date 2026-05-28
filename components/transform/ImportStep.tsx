@@ -3,13 +3,14 @@
 import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import Papa from "papaparse";
-import * as XLSX from "xlsx";
 import {
   Upload, FileText, Database, Globe, Table2,
   ChevronRight, CheckCircle, AlertCircle, Loader2,
-  BarChart3, Users, TrendingUp, X
+  BarChart3, Users, TrendingUp, X, Check, Edit2
 } from "lucide-react";
 import { useDataStore } from "@/store/useDataStore";
+import { parseExcelFile } from "@/lib/parseExcel";
+import type { SheetData } from "@/lib/parseExcel";
 import { inferColumns, generateId, SAMPLE_DATASETS, computeColumnStats } from "@/lib/utils";
 import type { Row } from "@/store/useDataStore";
 import { cn } from "@/lib/utils";
@@ -17,7 +18,7 @@ import { cn } from "@/lib/utils";
 type ImportMode = "file" | "url" | "paste" | "sample";
 
 export default function ImportStep() {
-  const { addDataset, setPipelineStep } = useDataStore();
+  const { addDataset, addSheets, setPipelineStep } = useDataStore();
   const [mode, setMode] = useState<ImportMode>("file");
   const [preview, setPreview] = useState<Row[]>([]);
   const [previewName, setPreviewName] = useState("");
@@ -25,6 +26,13 @@ export default function ImportStep() {
   const [error, setError] = useState<string | null>(null);
   const [urlInput, setUrlInput] = useState("");
   const [pasteInput, setPasteInput] = useState("");
+
+  // Multi-sheet excel support state
+  const [excelSheets, setExcelSheets] = useState<SheetData[]>([]);
+  const [selectedSheets, setSelectedSheets] = useState<Record<string, boolean>>({});
+  const [sheetRenames, setSheetRenames] = useState<Record<string, string>>({});
+  const [editingSheetIndex, setEditingSheetIndex] = useState<number | null>(null);
+  const [sheetPreview, setSheetPreview] = useState<SheetData | null>(null);
 
   const processData = useCallback((data: Row[], name: string) => {
     if (!data.length) { setError("File is empty or could not be parsed."); return; }
@@ -38,6 +46,9 @@ export default function ImportStep() {
     if (!file) return;
     setLoading(true);
     setError(null);
+    setExcelSheets([]);
+    setSheetPreview(null);
+
     try {
       if (file.name.endsWith(".csv") || file.type === "text/csv") {
         Papa.parse(file, {
@@ -49,12 +60,27 @@ export default function ImportStep() {
           error: () => { setError("Failed to parse CSV."); setLoading(false); }
         });
       } else if (file.name.match(/\.xlsx?$/)) {
-        const buffer = await file.arrayBuffer();
-        const wb = XLSX.read(buffer);
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const data = XLSX.utils.sheet_to_json<Row>(ws);
-        processData(data, file.name.replace(/\.[^.]+$/, ""));
-        setLoading(false);
+        const parsedSheets = await parseExcelFile(file);
+        if (parsedSheets.length > 1) {
+          // Multi-sheet flow
+          setExcelSheets(parsedSheets);
+          const initialSelection: Record<string, boolean> = {};
+          const initialRenames: Record<string, string> = {};
+          parsedSheets.forEach((s) => {
+            initialSelection[s.name] = true;
+            initialRenames[s.name] = s.name;
+          });
+          setSelectedSheets(initialSelection);
+          setSheetRenames(initialRenames);
+          setLoading(false);
+        } else if (parsedSheets.length === 1) {
+          // Single-sheet flow
+          processData(parsedSheets[0].data as Row[], parsedSheets[0].name);
+          setLoading(false);
+        } else {
+          setError("No sheets found in Excel file.");
+          setLoading(false);
+        }
       } else if (file.name.endsWith(".json")) {
         const text = await file.text();
         const parsed = JSON.parse(text);
@@ -64,8 +90,9 @@ export default function ImportStep() {
       } else {
         setError("Unsupported file type. Use CSV, Excel (.xlsx), or JSON."); setLoading(false);
       }
-    } catch {
-      setError("Failed to read file."); setLoading(false);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to read file.";
+      setError(msg); setLoading(false);
     }
   }, [processData]);
 
@@ -80,13 +107,6 @@ export default function ImportStep() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/execute-code`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: `return null;`, data: [], columns: [] }),
-      });
-      if (!res.ok) throw new Error("Proxy unavailable");
-      // Direct fetch (may fail on CORS)
       const dataRes = await fetch(urlInput);
       const text = await dataRes.text();
       if (urlInput.includes(".csv") || text.trim().startsWith('"') || text.includes(",")) {
@@ -128,15 +148,64 @@ export default function ImportStep() {
     if (!preview.length) return;
     const columns = inferColumns(preview);
     const id = generateId();
-    addDataset({
+    
+    // Add to Sheets
+    addSheets([{
       id,
       name: previewName || "Dataset",
-      rawData: preview,
-      columns,
-      pipeline: [],
-      transformedData: preview,
-      createdAt: new Date().toISOString(),
+      originalName: previewName || "Dataset",
+      originalCsv: Papa.unparse(preview),
+      cleanedCsv: null,
+      columns: columns.map(c => ({
+        name: c.name,
+        type: c.type as "string" | "number" | "date" | "boolean",
+        nullCount: preview.filter(r => r[c.name] === null || r[c.name] === '').length,
+        uniqueCount: new Set(preview.map(r => r[c.name])).size,
+        sample: preview.slice(0, 3).map(r => r[c.name])
+      })),
+      rowCount: preview.length,
+      pipelineSteps: [],
+      linkedTo: [],
+      version: 1,
+      lastModified: new Date(),
+      data: preview as Record<string, unknown>[]
+    }]);
+
+    setPipelineStep(1);
+  };
+
+  const handleImportExcelSheets = () => {
+    const activeSheets = excelSheets.filter(s => selectedSheets[s.name]);
+    if (activeSheets.length === 0) {
+      setError("Please select at least one sheet to import.");
+      return;
+    }
+
+    const sheetsToLoad = activeSheets.map(s => {
+      const renamed = sheetRenames[s.name] || s.name;
+      return {
+        id: generateId(),
+        name: renamed,
+        originalName: s.name,
+        originalCsv: s.csvString,
+        cleanedCsv: null,
+        columns: s.columns.map(c => ({
+          name: c.name,
+          type: c.type,
+          nullCount: c.nullCount,
+          uniqueCount: c.uniqueCount,
+          sample: c.sample
+        })),
+        rowCount: s.rowCount,
+        pipelineSteps: [],
+        linkedTo: [],
+        version: 1,
+        lastModified: new Date(),
+        data: s.data
+      };
     });
+
+    addSheets(sheetsToLoad);
     setPipelineStep(1);
   };
 
@@ -152,7 +221,13 @@ export default function ImportStep() {
         {(["file", "url", "paste", "sample"] as ImportMode[]).map((m) => (
           <button
             key={m}
-            onClick={() => { setMode(m); setPreview([]); setError(null); }}
+            onClick={() => {
+              setMode(m);
+              setPreview([]);
+              setExcelSheets([]);
+              setSheetPreview(null);
+              setError(null);
+            }}
             className={cn(
               "px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-150 capitalize",
               mode === m ? "bg-white shadow-card text-text-primary" : "text-text-secondary hover:text-text-primary"
@@ -164,7 +239,7 @@ export default function ImportStep() {
       </div>
 
       {/* Import area */}
-      {mode === "file" && (
+      {mode === "file" && excelSheets.length === 0 && (
         <div
           {...getRootProps()}
           className={cn(
@@ -194,6 +269,115 @@ export default function ImportStep() {
         </div>
       )}
 
+      {/* Multi-sheet Excel Selector Panel (FIX 4 Requirement) */}
+      {excelSheets.length > 0 && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="card-lg border-brand-200 bg-brand-50/20 p-6">
+            <h3 className="text-base font-bold text-text-primary flex items-center gap-2 mb-4">
+              <Table2 className="w-5 h-5 text-brand" />
+              📊 {excelSheets.length} sheets detected in your Excel file
+            </h3>
+
+            <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scroll pr-2">
+              {excelSheets.map((sheet, index) => (
+                <div key={sheet.name} className="flex items-center justify-between p-3 rounded-xl border bg-white shadow-sm hover:shadow-md transition-all">
+                  <div className="flex items-center gap-3 flex-1">
+                    <input
+                      type="checkbox"
+                      checked={!!selectedSheets[sheet.name]}
+                      onChange={(e) => setSelectedSheets({ ...selectedSheets, [sheet.name]: e.target.checked })}
+                      className="w-4 h-4 rounded text-brand focus:ring-brand border-gray-300"
+                    />
+
+                    {editingSheetIndex === index ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          value={sheetRenames[sheet.name] || ""}
+                          onChange={(e) => setSheetRenames({ ...sheetRenames, [sheet.name]: e.target.value })}
+                          className="px-2 py-1 text-xs border rounded-lg focus:ring-1 focus:ring-brand"
+                        />
+                        <button onClick={() => setEditingSheetIndex(null)} className="w-6 h-6 rounded bg-brand text-white flex items-center justify-center">
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-bold text-text-primary">{sheetRenames[sheet.name] || sheet.name}</span>
+                        <button onClick={() => setEditingSheetIndex(index)} className="p-1 hover:bg-muted rounded text-text-tertiary">
+                          <Edit2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+
+                    <span className="text-xs text-text-tertiary">({sheet.rowCount} rows · {sheet.columns.length} columns)</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setSheetPreview(sheet)}
+                      className="px-3 py-1.5 border hover:bg-muted text-text-secondary rounded-lg text-xs font-bold transition-all"
+                    >
+                      Preview Sheet
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-between items-center mt-6 pt-4 border-t">
+              <button
+                onClick={() => { setExcelSheets([]); setSheetPreview(null); }}
+                className="px-4 py-2 border rounded-xl text-xs font-bold hover:bg-muted transition-all"
+              >
+                Cancel Upload
+              </button>
+              <button
+                onClick={handleImportExcelSheets}
+                className="px-5 py-2.5 bg-green-primary hover:bg-green-600 text-white rounded-xl text-xs font-bold shadow flex items-center gap-1.5 transition-all"
+              >
+                Import All Selected Sheets
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Mini Sheet Preview */}
+          {sheetPreview && (
+            <div className="panel animate-fade-in">
+              <div className="panel-header flex justify-between items-center">
+                <span className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                  <Table2 className="w-4 h-4 text-text-tertiary" />
+                  Preview: {sheetRenames[sheetPreview.name] || sheetPreview.name} (First 5 Rows)
+                </span>
+                <button onClick={() => setSheetPreview(null)} className="text-text-tertiary hover:text-red-500">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="overflow-x-auto max-h-60 custom-scroll">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      {sheetPreview.columns.map((c) => (
+                        <th key={c.name}>{c.name}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sheetPreview.data.slice(0, 5).map((row, i) => (
+                      <tr key={i}>
+                        {sheetPreview.columns.map((c) => (
+                          <td key={c.name}>{String(row[c.name] ?? "null")}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {mode === "url" && (
         <div className="space-y-3">
           <div className="panel p-4">
@@ -215,28 +399,6 @@ export default function ImportStep() {
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Fetch"}
               </button>
             </div>
-            <div className="flex flex-wrap gap-2 mt-3">
-              {[
-                "https://raw.githubusercontent.com/datasets/covid-19/main/data/countries-aggregated.csv",
-                "https://jsonplaceholder.typicode.com/users",
-              ].map((url) => (
-                <button
-                  key={url}
-                  onClick={() => setUrlInput(url)}
-                  className="text-xs text-brand hover:underline truncate max-w-[300px]"
-                >
-                  {url.split("/").pop()}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="panel p-4">
-            <h4 className="text-sm font-medium text-text-primary mb-3 flex items-center gap-2">
-              <Database className="w-4 h-4 text-text-tertiary" /> Connect to Database
-            </h4>
-            <p className="text-xs text-text-tertiary">
-              PostgreSQL and Google Sheets connections require a backend proxy. Coming soon.
-            </p>
           </div>
         </div>
       )}
@@ -246,7 +408,7 @@ export default function ImportStep() {
           <textarea
             value={pasteInput}
             onChange={(e) => setPasteInput(e.target.value)}
-            placeholder={"Paste CSV or JSON data here...\n\nCSV example:\nname,age,city\nAlice,30,NYC\nBob,25,LA\n\nOr paste JSON array."}
+            placeholder={"Paste CSV or JSON data here...\n\nCSV example:\nname,age,city\nAlice,30,NYC\nBob,25,LA"}
             className="input h-48 font-mono text-xs resize-none"
           />
           <button onClick={handlePasteImport} className="btn-primary">
@@ -287,14 +449,14 @@ export default function ImportStep() {
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600 animate-fade-in">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           {error}
         </div>
       )}
 
       {/* Data quality report */}
-      {preview.length > 0 && (
+      {preview.length > 0 && excelSheets.length === 0 && (
         <div className="space-y-4 animate-fade-in">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
@@ -306,7 +468,6 @@ export default function ImportStep() {
             </button>
           </div>
 
-          {/* Stats */}
           <div className="grid grid-cols-4 gap-3">
             {[
               { label: "Total Rows", value: preview.length.toLocaleString() },
@@ -329,70 +490,6 @@ export default function ImportStep() {
             ))}
           </div>
 
-          {/* Column type summary */}
-          <div className="flex flex-wrap gap-2">
-            {columns.map((col) => (
-              <span key={col.name} className="badge-neutral">
-                <span className="font-medium">{col.name}</span>
-                <span className={cn(
-                  "ml-1 text-[9px] px-1 py-0.5 rounded",
-                  col.type === "number" ? "bg-blue-100 text-blue-600" :
-                  col.type === "date" ? "bg-purple-100 text-purple-600" :
-                  col.type === "boolean" ? "bg-green-100 text-green-600" :
-                  "bg-gray-100 text-gray-500"
-                )}>
-                  {col.type}
-                </span>
-              </span>
-            ))}
-          </div>
-
-          {/* Preview table */}
-          <div className="panel">
-            <div className="panel-header">
-              <span className="text-sm font-semibold text-text-primary flex items-center gap-2">
-                <Table2 className="w-4 h-4 text-text-tertiary" />
-                Preview (first 10 rows of {preview.length})
-              </span>
-            </div>
-            <div className="overflow-x-auto max-h-64 custom-scroll">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    {columns.map((col) => (
-                      <th key={col.name}>
-                        <div className="flex items-center gap-1">
-                          {col.name}
-                          <span className={cn(
-                            "text-[8px] px-1 rounded",
-                            col.type === "number" ? "text-blue-500" :
-                            col.type === "date" ? "text-purple-500" : "text-gray-400"
-                          )}>
-                            {col.type[0]}
-                          </span>
-                        </div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {preview.slice(0, 10).map((row, i) => (
-                    <tr key={i}>
-                      {columns.map((col) => (
-                        <td key={col.name}>
-                          {row[col.name] === null || row[col.name] === "" ? (
-                            <span className="text-text-tertiary italic text-xs">null</span>
-                          ) : String(row[col.name])}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Confirm */}
           <button onClick={handleConfirm} className="btn-primary w-full gap-2">
             Import {preview.length.toLocaleString()} Rows → Continue to Clean
             <ChevronRight className="w-4 h-4" />

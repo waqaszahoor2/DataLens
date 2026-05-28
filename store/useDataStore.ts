@@ -115,23 +115,17 @@ export interface ChartConfig {
   padding?: number;
   backgroundColor?: string;
   conditionalFormats?: ConditionalFormatRule[];
-  // KPI
   kpiValue?: string;
   kpiDelta?: string;
   kpiSparkline?: string;
-  // Filter widget
   filterColumn?: string;
   filterType?: "dropdown" | "multiselect" | "daterange" | "slider";
-  // Text widget
   textContent?: string;
-  // Image widget
   imageUrl?: string;
-  // Layout on canvas
   x?: number;
   y?: number;
   w?: number;
   h?: number;
-  // Per-widget transforms
   widgetTransform?: WidgetTransform;
   pythonCode?: string;
 }
@@ -146,25 +140,72 @@ export interface Dataset {
   createdAt: string;
 }
 
-// Cross-filter state
+export interface ColumnMeta {
+  name: string;
+  type: "string" | "number" | "date" | "boolean";
+  nullCount: number;
+  uniqueCount: number;
+  sample: unknown[];
+}
+
+export interface Sheet {
+  id: string;
+  name: string;
+  originalName: string;
+  originalCsv: string;
+  cleanedCsv: string | null;
+  columns: ColumnMeta[];
+  rowCount: number;
+  pipelineSteps: PipelineStep[];
+  linkedTo: SheetLink[];
+  version: number;
+  lastModified: string | Date;
+  data?: Record<string, unknown>[];
+}
+
+export interface SheetLink {
+  id: string;
+  fromSheetId: string;
+  fromColumn: string;
+  toSheetId: string;
+  toColumn: string;
+  joinType: "inner" | "left" | "right" | "outer";
+  name: string;
+}
+
+export interface PipelineStep {
+  id: string;
+  name: string;
+  code: string;
+  order: number;
+  status: "success" | "error" | "pending";
+  output: string | null;
+}
+
+export interface LinkedDataset {
+  id: string;
+  name: string;
+  data: Record<string, unknown>[];
+  columns: ColumnMeta[];
+  rowCount: number;
+}
+
 export type ActiveFilters = Record<string, (string | number | boolean | null)[]>;
 
 interface DataState {
-  // Datasets
+  // Original Datasets compatibility aliases
   datasets: Dataset[];
   activeDatasetId: string | null;
-
-  // Cross filters
   activeFilters: ActiveFilters;
-
-  // Pipeline step (0=Import, 1=Clean, 2=Transform, 3=Model)
   pipelineStep: number;
-
-  // Chart configs on dashboard
   charts: ChartConfig[];
-
-  // Selected chart id (for config panel)
   selectedChartId: string | null;
+
+  // New Multi-sheet system state
+  sheets: Sheet[];
+  activeSheetId: string | null;
+  links: SheetLink[];
+  linkedDatasets: LinkedDataset[];
 
   // Actions
   addDataset: (dataset: Dataset) => void;
@@ -174,7 +215,6 @@ interface DataState {
   getActiveDataset: () => Dataset | null;
 
   setPipelineStep: (step: number) => void;
-
   addTransformStep: (datasetId: string, step: TransformStep) => void;
   removeTransformStep: (datasetId: string, stepId: string) => void;
   clearPipeline: (datasetId: string) => void;
@@ -186,8 +226,21 @@ interface DataState {
 
   toggleFilter: (column: string, value: string | number | boolean | null) => void;
   clearAllFilters: () => void;
-
   clearSession: () => void;
+
+  // New Multi-sheet Actions
+  addSheets: (sheets: Sheet[]) => void;
+  updateSheet: (id: string, updates: Partial<Sheet>) => void;
+  removeSheet: (id: string) => void;
+  setActiveSheet: (id: string) => void;
+  addLink: (link: SheetLink) => void;
+  removeLink: (id: string) => void;
+  addLinkedDataset: (dataset: LinkedDataset) => void;
+
+  // Getters
+  getActiveSheet: () => Sheet | null;
+  getSheetById: (id: string) => Sheet | null;
+  getAllColumns: () => Record<string, ColumnMeta[]>;
 }
 
 export const useDataStore = create<DataState>()(
@@ -199,6 +252,11 @@ export const useDataStore = create<DataState>()(
       pipelineStep: 0,
       charts: [],
       selectedChartId: null,
+
+      sheets: [],
+      activeSheetId: null,
+      links: [],
+      linkedDatasets: [],
 
       addDataset: (dataset) =>
         set((s) => ({
@@ -292,7 +350,99 @@ export const useDataStore = create<DataState>()(
           pipelineStep: 0,
           charts: [],
           selectedChartId: null,
+          sheets: [],
+          activeSheetId: null,
+          links: [],
+          linkedDatasets: [],
         }),
+
+      // New Multi-sheet system actions
+      addSheets: (newSheets) =>
+        set((state) => {
+          // Compatibility map sheets to datasets
+          const mappedDatasets: Dataset[] = newSheets.map((sheet) => ({
+            id: sheet.id,
+            name: sheet.name,
+            rawData: (sheet.data || []) as Row[],
+            columns: sheet.columns.map((c) => ({
+              name: c.name,
+              type: c.type as ColumnType,
+            })),
+            pipeline: [],
+            transformedData: (sheet.data || []) as Row[],
+            createdAt: new Date().toISOString(),
+          }));
+
+          return {
+            sheets: [...state.sheets, ...newSheets],
+            activeSheetId: newSheets[0]?.id ?? state.activeSheetId,
+            datasets: [...state.datasets, ...mappedDatasets],
+            activeDatasetId: mappedDatasets[0]?.id ?? state.activeDatasetId,
+          };
+        }),
+
+      updateSheet: (id, updates) =>
+        set((state) => ({
+          sheets: state.sheets.map((s) => (s.id === id ? { ...s, ...updates } : s)),
+        })),
+
+      removeSheet: (id) =>
+        set((state) => ({
+          sheets: state.sheets.filter((s) => s.id !== id),
+          activeSheetId: state.activeSheetId === id ? (state.sheets[0]?.id ?? null) : state.activeSheetId,
+          links: state.links.filter((l) => l.fromSheetId !== id && l.toSheetId !== id),
+          datasets: state.datasets.filter((d) => d.id !== id),
+          activeDatasetId: state.activeDatasetId === id ? (state.datasets[0]?.id ?? null) : state.activeDatasetId,
+        })),
+
+      setActiveSheet: (id) => set({ activeSheetId: id, activeDatasetId: id }),
+
+      addLink: (link) =>
+        set((state) => ({ links: [...state.links, link] })),
+
+      removeLink: (id) =>
+        set((state) => ({
+          links: state.links.filter((l) => l.id !== id),
+        })),
+
+      addLinkedDataset: (dataset) =>
+        set((state) => {
+          // Map to compatibility datasets as well
+          const compatibilityDataset: Dataset = {
+            id: dataset.id,
+            name: dataset.name,
+            rawData: dataset.data as Row[],
+            columns: dataset.columns.map((c) => ({
+              name: c.name,
+              type: c.type as ColumnType,
+            })),
+            pipeline: [],
+            transformedData: dataset.data as Row[],
+            createdAt: new Date().toISOString(),
+          };
+
+          return {
+            linkedDatasets: [...state.linkedDatasets, dataset],
+            datasets: [...state.datasets, compatibilityDataset],
+            activeDatasetId: dataset.id,
+          };
+        }),
+
+      getActiveSheet: () => {
+        const { sheets, activeSheetId } = get();
+        return sheets.find((s) => s.id === activeSheetId) ?? null;
+      },
+
+      getSheetById: (id) => {
+        return get().sheets.find((s) => s.id === id) ?? null;
+      },
+
+      getAllColumns: () => {
+        return get().sheets.reduce((acc, sheet) => {
+          acc[sheet.name] = sheet.columns;
+          return acc;
+        }, {} as Record<string, ColumnMeta[]>);
+      },
     }),
     {
       name: "datalens-data",
@@ -302,6 +452,10 @@ export const useDataStore = create<DataState>()(
         activeDatasetId: s.activeDatasetId,
         pipelineStep: s.pipelineStep,
         charts: s.charts,
+        sheets: s.sheets,
+        activeSheetId: s.activeSheetId,
+        links: s.links,
+        linkedDatasets: s.linkedDatasets,
       }),
     }
   )
