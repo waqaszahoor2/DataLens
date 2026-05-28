@@ -33,7 +33,8 @@ interface SidebarSection {
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { data: session } = useSession();
+  const sessionContext = useSession();
+  const session = sessionContext?.data;
   const { sheets, links } = useDataStore();
   const { isDarkMode, mobileMenuOpen, setMobileMenuOpen } = useCanvasStore();
 

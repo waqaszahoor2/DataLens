@@ -8,6 +8,11 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   webpack: (config, { isServer }) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "plotly.js/dist/plotly": "plotly.js-dist-min",
+      "plotly.js": "plotly.js-dist-min",
+    };
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
