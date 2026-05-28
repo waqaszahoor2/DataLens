@@ -26,9 +26,6 @@ export function useCollaboration(dashboardId: string) {
         cursor: { x: 300, y: 400 },
       };
       setCollaborators((prev) => [...prev, newUser]);
-      toast.info("Sarah Chen (Data Scientist) joined your collaborative canvas!", {
-        description: "Editing widgets in real-time.",
-      });
     }, 8000);
 
     const timer2 = setTimeout(() => {
@@ -41,9 +38,6 @@ export function useCollaboration(dashboardId: string) {
         activeWidgetId: "widget-kpi-1", // Highlight widget
       };
       setCollaborators((prev) => [...prev, newUser]);
-      toast.info("Marcus Aurelius (Manager) joined the session.", {
-        description: "Analyzing recent KPIs.",
-      });
     }, 18000);
 
     // 2. Simulate cursor movement for collaborators to make the page feel completely alive

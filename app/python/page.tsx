@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import {
   Code, Play, Sparkles, AlertTriangle, CheckCircle,
   Copy, Trash2, Download, Plus, Layers, Terminal,
-  BarChart3, RefreshCw, HelpCircle, ChevronDown, ChevronUp, Loader2
+  BarChart3, RefreshCw, HelpCircle, ChevronDown, ChevronUp, Loader2, X
 } from "lucide-react";
 import { useDataStore } from "@/store/useDataStore";
 import { usePyodide } from "@/lib/usePyodide";
