@@ -84,6 +84,7 @@ for name, df in sheets.items():
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiGenerating, setAiGenerating] = useState(false);
   const [showAiInput, setShowAiInput] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
 
   // Snippets library
   const SNIPPET_GROUPS: SnippetGroup[] = [
@@ -322,6 +323,14 @@ for name, df in sheets.items():
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowHelpModal(true)}
+              className="px-3.5 py-2 border border-border hover:bg-muted text-text-secondary rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
+            >
+              <HelpCircle className="w-4 h-4 text-text-tertiary" />
+              How to Use
+            </button>
+
             <button
               onClick={handleRun}
               disabled={isRunning || !isReady}
@@ -564,6 +573,87 @@ for name, df in sheets.items():
           </div>
 
         </div>
+
+        {showHelpModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in">
+            <div className="bg-white rounded-2xl border border-border shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto custom-scroll p-6 relative">
+              <button
+                onClick={() => setShowHelpModal(false)}
+                className="absolute top-4 right-4 p-2 hover:bg-muted text-text-secondary hover:text-text-primary rounded-xl transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center gap-3 mb-4 border-b pb-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+                  <HelpCircle className="w-5.5 h-5.5 text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-extrabold text-text-primary">Python Workspace Guide</h2>
+                  <p className="text-[10px] text-text-tertiary">How to execute scripts & create custom dashboard widgets</p>
+                </div>
+              </div>
+
+              <div className="space-y-4 text-xs text-text-secondary leading-relaxed text-left">
+                <div className="p-4 bg-blue-light/30 border border-blue-primary/20 rounded-xl text-blue-primary font-medium">
+                  💡 <strong>DataLens</strong> executes real Python directly inside your browser using <strong>WebAssembly (Pyodide)</strong>. There is no external server needed—all execution is sandboxed, private, and runs in a separate background thread!
+                </div>
+
+                <div className="space-y-2">
+                  <h3 className="text-xs font-bold text-text-primary flex items-center gap-1">
+                    <span className="text-green-primary">1.</span> Pre-loaded Dataframes
+                  </h3>
+                  <p>When your csv/excel sheets are loaded, the workspace automatically translates them into fully functional <strong>Pandas DataFrames</strong> before your script runs:</p>
+                  <ul className="list-disc pl-5 space-y-1 bg-muted/20 p-3 rounded-lg font-mono text-[10px]">
+                    <li><code>df_sheet1</code>: First spreadsheet dataset</li>
+                    <li><code>df_sheet2</code>: Second spreadsheet dataset (if imported)</li>
+                    <li><code>df_sheet3</code>: Third spreadsheet dataset (if imported)</li>
+                    <li><code>sheets</code>: A global python dictionary matching sheet names to dataframes, e.g. <code>sheets[&apos;Sales Report&apos;]</code></li>
+                  </ul>
+                </div>
+
+                <div className="space-y-2">
+                  <h3 className="text-xs font-bold text-text-primary flex items-center gap-1">
+                    <span className="text-green-primary">2.</span> How to Create Custom Dashboard Widgets
+                  </h3>
+                  <p>To capture your python analysis and render it on your main interactive Canvas Dashboard, you must write a script that does the following:</p>
+                  <div className="bg-gray-900 text-green-400 p-4 rounded-xl font-mono text-[10px] space-y-2">
+                    <p className="text-gray-500"># 1. Access the dataset</p>
+                    <p>df = df_sheet1</p>
+                    <br />
+                    <p className="text-gray-500"># 2. Build your custom visualization with Plotly Express</p>
+                    <p>fig = px.scatter(df, x=df.columns[0], y=df.columns[1], title=&apos;Profit Trend Analysis&apos;)</p>
+                    <br />
+                    <p className="text-gray-500"># 3. ASSIGN THE PLOTLY FIGURE TO: output_chart (Crucial!)</p>
+                    <p className="text-white font-bold">output_chart = fig</p>
+                  </div>
+                  <p>Once you run the script, the chart will render in the <strong>&quot;Chart&quot;</strong> tab. Simply click the <strong className="text-green-primary">&quot;Add to Dashboard&quot;</strong> button at the bottom of the tab! This will package your python code and immediately create an interactive canvas widget.</p>
+                </div>
+
+                <div className="space-y-2">
+                  <h3 className="text-xs font-bold text-text-primary flex items-center gap-1">
+                    <span className="text-green-primary">3.</span> How to Preview Cleaned Datasets
+                  </h3>
+                  <p>If you are cleaning or transforming your dataset, assign the final pandas dataframe to the variable <code>result_df</code>. The result will display in the <strong>&quot;Preview&quot;</strong> tab so you can audit the rows and data types instantly!</p>
+                </div>
+
+                <div className="space-y-2">
+                  <h3 className="text-xs font-bold text-text-primary flex items-center gap-1">
+                    <span className="text-green-primary">4.</span> Use the Snippet Accordion
+                  </h3>
+                  <p>Stuck on code? Click the <strong>Snippet Library</strong> categories on the left pane to insert templates for charts, filters, pivot tables, cleaning, and multi-sheet joins in one-click.</p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowHelpModal(false)}
+                className="mt-6 w-full py-2.5 bg-green-primary hover:bg-green-600 text-white rounded-xl text-xs font-bold shadow-md transition-all"
+              >
+                Get Started Writing Python
+              </button>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

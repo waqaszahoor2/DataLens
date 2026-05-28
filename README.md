@@ -66,6 +66,50 @@ vercel --prod
 - **Emergency Mobile Mode**: Capture physical tabular photos (OCR), select chart, and share instantly
 - **High-Res Export**: Download full high-resolution PNG images or PDFs in one-click
 
+## Python-Powered Dashboard Engine (Pyodide WASM)
+
+DataLens runs a complete, client-side Python execution environment powered by **Pyodide WebAssembly (WASM)**. Since it compiles and executes directly inside a background browser Web Worker, your data is processed entirely locally—providing maximum speed, zero hosting latency, and absolute privacy.
+
+### Pre-loaded Dataframes
+When you upload spreadsheet files, they are automatically parsed and injected into the Python context before your script begins execution:
+*   `df_sheet1`: First sheet or CSV as a standard Pandas DataFrame.
+*   `df_sheet2`, `df_sheet3`, `df_sheet4`: Subsequent uploaded sheets.
+*   `sheets`: A global dictionary mapping sheet names to DataFrames (e.g., `sheets['Q1 Sales']`).
+
+### Generating Custom Dashboard Widgets
+
+Creating custom charts and dashboard components using Python is extremely straightforward:
+
+1.  **Select columns & perform analysis**: Use standard `pandas`, `numpy`, or `scipy` operations inside the Monaco Editor.
+2.  **Generate a Plotly Figure**: Build your custom visualization using `plotly.express` or `plotly.graph_objects`.
+3.  **Assign to `output_chart`**: Assign the final figure object to the global variable `output_chart`. This is the variable the engine scans to render your chart.
+4.  **Save as a Widget**: Once your chart compiles in the "Chart" tab, click the **"Add to Dashboard"** button. The engine packages your script, saves it to the workspace state, and creates a dynamic widget on your drag-and-drop dashboard canvas!
+
+**Example Code Template**:
+```python
+import pandas as pd
+import numpy as np
+import plotly.express as px
+
+# 1. Access preloaded dataframe
+df = df_sheet1
+
+# 2. Perform aggregations/grouping
+summary = df.groupby(df.columns[0]).sum().reset_index()
+
+# 3. Create a Plotly Chart
+fig = px.bar(summary, x=summary.columns[0], y=summary.columns[1], 
+             title="Custom Aggregated Revenue Chart", 
+             color_discrete_sequence=['#1D9E75'])
+
+# 4. ASSIGN TO output_chart TO EXPORT AS WIDGET
+output_chart = fig
+```
+
+### Auditing & Previews
+*   **Preview Dataframe**: If you perform cleaning, merging, or filtering on your dataframe, assign the final resulting DataFrame to the `result_df` variable (e.g., `result_df = clean_df`). This will automatically populate the raw data preview spreadsheet grid in the "Preview" tab.
+*   **AI Smart Suggestions**: Click the **"AI Generate"** bar to write complex python operations using plain English. If your code hits a runtime error, simply click the **"AI Fix"** button to automatically send the error trace to Claude and insert the corrected python script.
+
 ## Environment Variables
 | Variable | Required | Description |
 |---|---|---|
